@@ -1,0 +1,48 @@
+#include <getopt.h>
+#include <stdio.h>
+
+int main(int argc, char* argv[])
+{
+   //getopt struct from setting options for passing parameters
+   //char* long_name, int followingArgument, char* flagUsage, char short_name
+   const struct option long_options[] = 
+     {
+	{ "help" , 0, NULL, 'h' },
+	{ "test" , 1, NULL, 't' },
+	{ "Aleks" ,0, NULL, 'l' },
+	{ NULL   , 0, NULL,  0  }
+     };
+
+   //short option for getopt
+   //single letter for option, followed with a ':' for required argument
+   const char* short_options = "ht:l";
+   int next_option = 0;
+   while (next_option != -1)
+       {
+	  next_option = getopt_long(argc, argv, short_options, long_options, NULL);
+	  switch (next_option)
+	    {
+	     case 'h':
+	       printf("Testing for command line options\n\n");
+	       printf("-h , --help           Open the help menu\n");
+	       printf("-t , --test  testWord Prints out a statement with testWord appended\n");
+	       break;
+	       
+	     case 't':
+	       printf("Test Menu\n");
+	       printf("Did you really enter %s?\n", optarg);
+	       break;
+	       
+	     case 'l':
+	       printf(" Aleks wuz hure\n");
+	       break;
+	       
+	     case -1:
+	       printf("\n All arguments parsed\n");
+	       break;
+	    }
+   
+       }
+   
+   
+}

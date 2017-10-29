@@ -1,0 +1,10 @@
+#ifndef _cplusplus
+extern "C" 
+{
+#endif
+   
+   extern double intDivide(int i);
+   
+   #ifndef _cplusplus
+}
+#endif
