@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
 	     
 	    //For this file
 	    //Declare and instantiate (struct passwd) password in stack
-	    struct passwd *password;
+	    struct passwd* password;
 	    //Populate passwd at address of password
 	    // password is also a pointer
 	    //getpwuid returns a pointer 

@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
    //Variable for loop
    int i;
    int c = 1;
-   //write(pd[1], &c, sizeof(c));
+   write(pd[1], &c, sizeof(c));
    
    //Exit loop when all files are accounted for with a unique process
    for (i = 1; i < argc; i++)
@@ -82,11 +82,11 @@ int main(int argc, char *argv[])
 	     
 	    //For this file
 	    //Declare and instantiate (struct passwd) password in stack
-	    struct passwd *password;
+	    struct passwd password;
 	    //Populate passwd at address of password
 	    // password is also a pointer
 	    //getpwuid returns a pointer 
-	    password = getpwuid(fileData.st_uid);
+	    &password = getpwuid(fileData.st_uid);
 	    
 	    printf("Directory: %s\n", password->pw_dir); 
 	    

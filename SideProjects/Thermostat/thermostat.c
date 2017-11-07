@@ -48,9 +48,7 @@ void interface()
    //Send current cool/heat setting
    write(direction[1], &cool, sizeof(cool));
    
-   //Send current status
-   write(status[1], &quit, sizeof(quit));
-
+  
    printf("Set Temperature: %f\n", setTemp);
    printf("Current Temperature: %f\n", currentTemp);
    printf("Main Menu:\n");
@@ -81,9 +79,12 @@ void interface()
 	break;
 	
       case 4:
-	quit = 0;
+	quit = 0;	
 	break;
      }
+   
+    //Send current status
+   write(status[1], &quit, sizeof(quit));
    
    //Request Temperature Update
    write(parentTempReq[1], &request, sizeof(request)); 
@@ -103,10 +104,6 @@ double changeTemperature()
    //Read current mode setting
    close(direction[1]);
    read(direction[0], &cool, sizeof(cool));
-   
-   //Read current status
-   close(status[1]);
-   read(status[0], &quit, sizeof(quit));
    
    while (!request) 
      {
@@ -141,7 +138,11 @@ double changeTemperature()
 	
      }
    request = 0;
-   
+ 
+   //Read current status
+   close(status[1]);
+   read(status[0], &quit, sizeof(quit));
+  
 }
    
 
@@ -203,6 +204,11 @@ int main(int argc, char** argv)
 	int parentStatus;
 	wait(&parentStatus);
      }
+   else 
+     {
+	exit(1);
+     }
+   system("ps -H");
    exit(0);
    return 0;
 }
