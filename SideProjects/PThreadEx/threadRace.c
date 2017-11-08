@@ -1,0 +1,77 @@
+#include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+//Number that determines current state of the race
+int count = 0;
+//Controls when program ends (when one thread reaches 100,000)
+int quit = 0;
+//Controls starting time to roughly synchornize threads
+int start = 0;
+
+//Decrement Function
+void* dec()
+{
+   start++;
+   while(start != 2)
+     {
+	printf("waiting dec\n");
+     }
+   while (!quit)
+     {
+	count--;
+	if (count == -100000)
+	  {
+	     printf("Decrement wins! Count: %d\n", count);
+	     quit = 1;
+	  }
+	else 
+	  {
+	     printf("Dec Count: %d\n", count);
+	  }
+	//sleep(1);
+     }
+}
+
+//Incremember function
+void* inc()
+{
+   start++;
+   while (start != 2)
+     {
+	printf("waiting up\n");
+     }
+   
+   while (!quit)
+     {
+	count++;
+	if (count == 100000)
+	  {
+	     printf("Increment wins! Count: %d\n", count);
+	     quit = 1;
+	  }
+	else 
+	  {
+	     printf("Inc Count: %d\n", count);
+	  }
+	//sleep(1);
+     }
+}
+
+
+
+int main(int argc, char** argv)
+{
+   pthread_t up, down;
+   //Down has a natural advantage due to starting first
+   printf("Start Down\n");
+   pthread_create(&down, NULL, &dec, NULL);
+   printf("Start Up\n");
+   pthread_create(&up, NULL, &inc, NULL);
+   pthread_join(up, NULL);
+   pthread_join(down, NULL);
+   return 0 ;
+}
+
+
