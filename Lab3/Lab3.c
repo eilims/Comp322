@@ -131,7 +131,6 @@ int main(int argc, char *argv[])
      }
    
    //Final print statement
-   printf("%d\n",cpid);
    system("ps -H");
   
    //Conclude running time
