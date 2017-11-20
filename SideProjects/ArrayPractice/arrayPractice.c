@@ -1,5 +1,6 @@
 #include <stdio.h>
 
+
 //Arrays are passed as pointers
 //There is no way to get the size of the array unless it is passed in or stored somewhere
 //You can store it in a struct or allocate data + 1 and store the length in therex
@@ -17,6 +18,7 @@ void arrayMod(int array[])
 
 int main(int argc, char** argv)
 {
+   
    int array[4];
    arrayMod(array);
    printf("Main Array Address %d\n", array);
