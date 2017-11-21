@@ -69,9 +69,10 @@ int main(int argc, char** argv)
 	printf("Thread did not start\n");
 	return 1;
      }
-   printf("Counter: %d\n", count);
    pthread_join(pthread0, NULL);
+   printf("Counter: %d\n", count);
    pthread_join(pthread1, NULL);
    printf("Counter: %d\n", count);
+   
    return 0;
 }

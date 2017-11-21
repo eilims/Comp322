@@ -73,5 +73,6 @@ int main(int argc, char** argv)
    printf("Counter: %d\n", count);
    pthread_join(pthread1, NULL);
    printf("Counter: %d\n", count);
+   printf("Im the main method");
    return 0;
 }
