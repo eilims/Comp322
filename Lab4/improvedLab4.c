@@ -35,19 +35,26 @@ pthread_mutex_t print_mutex;
 pthread_mutex_t count_mutex;
 
 //Global variables
-int barber_working[];
+//Maximum of 20 barbers
+int barber_working[20];
+//Number of currently available waiting spots
 int free_seat_count;
+//Maximum number of waiting spots
 int max_seat_count;
+//Number of barbers
 int barber_count;
+//Number of customers
 int customer_count;
+//Number of customers who have entered the store
 int customers_visited;
 
 //Customer thread function
 void* customer_run(void* arg)
 {
    int check_in_time = (rand()%10) + 1;
+   pthread_mutex_lock(&print_mutex);
    printf("Customer %d! I will appear in %d time\n", syscall(SYS_gettid), check_in_time);
-   
+   pthread_mutex_unlock(&print_mutex);
    //Sleep until check in time
    sleep(check_in_time);
      
@@ -68,11 +75,18 @@ void* customer_run(void* arg)
 	//Debugging statement
         printf("\nCustomer %d is sitting in seat %d\n", syscall(SYS_gettid), (free_seat_count + 1));
 	
+	int i;
+	//Allows for any barber to cut hair by applying a generic barber
+	int free_barber = 0;
 	//Wait until the barber is not working
-	while(!barber_working[0])
+	while(!free_barber)
 	  {
 	     //unlocks and relocks mutex when called
 	     pthread_cond_wait(&barber_cv, &barber_mutex);
+	     for (i = 0; i < barber_count; i++)
+	       {
+		  free_barber += barber_working[i];
+	       }
 	  }
 	//unlock barber
 	pthread_mutex_unlock(&barber_mutex);
@@ -118,7 +132,9 @@ void* customer_run(void* arg)
 void* barber_run(void* arg)
 {
    int cut_time = (rand()%3) + 1;
+   pthread_mutex_lock(&print_mutex);
    printf("Barber %d! It takes me %d time to cut hair\n\n", syscall(SYS_gettid), cut_time);
+   pthread_mutex_unlock(&print_mutex);
    
    while(customers_visited < customer_count)
      {
@@ -139,6 +155,10 @@ void* barber_run(void* arg)
 	
 	//Sleep for cutting time
 	sleep(cut_time);
+	pthread_mutex_lock(&print_mutex);
+	printf("\nBarber %d cut hair\n", syscall(SYS_gettid));
+	pthread_mutex_unlock(&print_mutex);
+	
 	
 	//Notify one thread that the barber is done
 	pthread_mutex_lock(&barber_mutex);
@@ -149,13 +169,29 @@ void* barber_run(void* arg)
 	//Allow customer to leave
 	//Makes the customer wait until the barber is done
 	sem_post(&barber_sem);	
-	
+		
 	//Noticed the customer left
 	sem_wait(&leaving_sem);
 	
+	//Lock mutex to aqcuire current count
 	pthread_mutex_lock(&count_mutex);
      }
-   printf("I QUIT! Barber helped %d people\n", customers_visited);
+   //Unlock mutex when we leave
+   pthread_mutex_unlock(&count_mutex);
+   
+   //Debugging
+   printf("\nI QUIT! Barber %d is done\n\n", syscall(SYS_gettid));
+   int sem_count;
+   int cust_count;
+   sem_getvalue(&leaving_sem, &sem_count);
+   sem_getvalue(&customer_sem, &cust_count);
+   printf("Remaining blocked threads leaving %d\n", sem_count);
+   printf("Remaining blocked threads customer %d\n", cust_count);
+   
+   //Other barbers may be trapped waiting
+   //These statements ensure they are released
+   sem_post(&customer_sem);
+   sem_post(&leaving_sem);
 }
 
 
@@ -163,7 +199,7 @@ int main(int argc, char** argv)
 {
    if (argc == 4)
      {
-	
+       
 	customers_visited = 0;
 	
 	//Seed for random values
@@ -208,9 +244,10 @@ int main(int argc, char** argv)
 	int i;
 	
 	//Barber thread creation
-	
-	for (i = 0; i < barber_count; i++)
+	int test = barber_count;
+	for (i = 0; i < test; i++)
 	  {
+	     printf("%d\n",i);
 	     pthread_create(&barber[i], NULL, &barber_run, NULL);
 	     barber_working[i] = 1;
 	  }
@@ -229,9 +266,9 @@ int main(int argc, char** argv)
 	  } 
 	
 	//Make sure threads finish
-	for (i = 0; i < barber_count; i++)
+	for (i = 0; i < test; i++)
 	  {
-	     pthread_join(barber[(syscall(SYS_gettid)%barber_count)], NULL);
+	     pthread_join(barber[i], NULL);
 	  }
 	
      }
