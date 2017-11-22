@@ -48,49 +48,13 @@ int customer_count;
 //Number of customers who have entered the store
 int customers_visited;
 
-//Customer thread function
-void* customer_run(void* arg)
-{
-   int check_in_time = (rand()%10) + 1;
-   pthread_mutex_lock(&print_mutex);
-   printf("Customer %d! I will appear in %d time\n", syscall(SYS_gettid), check_in_time);
-   pthread_mutex_unlock(&print_mutex);
-   //Sleep until check in time
-   sleep(check_in_time);
-     
-   //Lock on seat
-   pthread_mutex_lock(&seat_mutex);
-   //Seats are still free
-   if (free_seat_count > 0)
-     {
-	//One seat is now occupied
-	free_seat_count--;
-	pthread_mutex_unlock(&seat_mutex);
-	//State that a customer sat down
-	sem_post(&customer_sem);
-	
-	//Lock barber to check if he is busy
-	pthread_mutex_lock(&barber_mutex);
-	
-	//Debugging statement
-        printf("\nCustomer %d is sitting in seat %d\n", syscall(SYS_gettid), (free_seat_count + 1));
-	
-	int i;
-	//Allows for any barber to cut hair by applying a generic barber
-	int free_barber = 0;
-	//Wait until the barber is not working
-	while(!free_barber)
-	  {
-	     //unlocks and relocks mutex when called
-	     pthread_cond_wait(&barber_cv, &barber_mutex);
-	     for (i = 0; i < barber_count; i++)
-	       {
-		  free_barber += barber_working[i];
-	       }
-	  }
-	//unlock barber
-	pthread_mutex_unlock(&barber_mutex);
- 
+
+
+
+
+//Customer request for a haircut
+void requestHaircut()
+{ 
 	//Getting the haircut
 	//Must wait for the barber to finish
 	sem_wait(&barber_sem);
@@ -109,20 +73,111 @@ void* customer_run(void* arg)
 	
 	//Needed to ensure that the barber does not leave early
 	sem_post(&leaving_sem);
+}
+
+void noBarbers()
+{
+   pthread_mutex_lock(&print_mutex);
+   printf("\n---No more seats! I am Customer %d\n", syscall(SYS_gettid));
+   pthread_mutex_unlock(&print_mutex);
+   
+   //Note that a customer has been missed
+   pthread_mutex_lock(&count_mutex);
+   customers_visited++;
+   pthread_mutex_unlock(&count_mutex);
+}
+
+
+//Customer thread function
+void* customer_run(void* arg)
+{
+   int check_in_time = (rand()%10) + 1;
+   pthread_mutex_lock(&print_mutex);
+   printf("Customer %d! I will appear in %d seconds\n", syscall(SYS_gettid), check_in_time);
+   pthread_mutex_unlock(&print_mutex);
+   //Sleep until check in time
+   sleep(check_in_time);
+     
+   //Lock on seat
+   pthread_mutex_lock(&seat_mutex);
+   
+   
+   if (max_seat_count == 0)
+     {
+	
+	pthread_mutex_unlock(&seat_mutex);
+	
+	//Lock barber to check if he is busy
+	pthread_mutex_lock(&barber_mutex);
+	
+	//Debugging statement
+        printf("\nCustomer %d is checking for a barber\n", syscall(SYS_gettid));
+	
+	int i;
+	//Allows for any barber to cut hair by applying a generic barber
+	int free_barber = 0;
+	//Wait until the barber is not working
+	//unlocks and relocks mutex when called
+	for (i = 0; i < barber_count; i++)
+	  {
+	     free_barber += barber_working[i];
+	  }
+	printf("Free Barbers %d\n", free_barber);
+	if (free_barber)
+	  {
+	     pthread_mutex_unlock(&barber_mutex);
+	     requestHaircut();
+	  }
+	else 
+	  {
+	     pthread_mutex_unlock(&barber_mutex);
+	     noBarbers();
+	  }
+	
+	
+     }
+ 
+   //Check if there are no seats 
+   //Seats are still free
+   else if (free_seat_count > 0)
+     {
+	//One seat is now occupied
+	free_seat_count--;
+	
+	pthread_mutex_unlock(&seat_mutex);
+	//State that a customer sat down
+	sem_post(&customer_sem);
+	
+	//Lock barber to check if he is busy
+	pthread_mutex_lock(&barber_mutex);
+	
+	//Debugging statement
+        printf("\nCustomer %d is sitting in seat %d\n", syscall(SYS_gettid), (free_seat_count + 1));
+	
+	int i;
+	//Allows for any barber to cut hair by applying a generic barber
+	int free_barber = 0;
+	//Wait until the barber is not working
+	while(!free_barber)
+	  {
+	     //unlocks and relocks mutex when called
+	     pthread_cond_wait(&barber_cv, &barber_mutex);
+	     
+	     for (i = 0; i < barber_count; i++)
+	       {
+		  free_barber += barber_working[i];
+	       }
+	  }
+	pthread_mutex_unlock(&barber_mutex);
+	requestHaircut();
+	   
      }
    
    //Seats are all filled
    else 
      {
 	pthread_mutex_unlock(&seat_mutex);
-	pthread_mutex_lock(&print_mutex);
-	printf("\n---No more seats! I am Customer %d\n", syscall(SYS_gettid));
-	pthread_mutex_unlock(&print_mutex);
-	
-	//Note that a customer has been missed
-	pthread_mutex_lock(&count_mutex);
-	customers_visited++;
-	pthread_mutex_unlock(&count_mutex);
+	noBarbers();
      }
 
 }
@@ -133,45 +188,61 @@ void* barber_run(void* arg)
 {
    int cut_time = (rand()%3) + 1;
    pthread_mutex_lock(&print_mutex);
-   printf("Barber %d! It takes me %d time to cut hair\n\n", syscall(SYS_gettid), cut_time);
+   printf("\nBarber %d has arrived! It takes me %d seconds to cut hair\n\n", syscall(SYS_gettid), cut_time);
    pthread_mutex_unlock(&print_mutex);
    
    while(customers_visited < customer_count)
      {
+	
 	pthread_mutex_unlock(&count_mutex);
 	//Wait until at least one customer arrivers
-	sem_wait(&customer_sem);
-	
-	//Remove one thread from the seat
-	pthread_mutex_lock(&seat_mutex);
-	free_seat_count++;
-	pthread_mutex_unlock(&seat_mutex);
-	
-	//Notify all waiting threads that the barber is busy
-	pthread_mutex_lock(&barber_mutex);
-	barber_working[syscall(SYS_gettid)%barber_count] = 1;
-	pthread_cond_signal(&barber_cv);
-	pthread_mutex_unlock(&barber_mutex);
-	
-	//Sleep for cutting time
-	sleep(cut_time);
 	pthread_mutex_lock(&print_mutex);
-	printf("\nBarber %d cut hair\n", syscall(SYS_gettid));
+	printf("Barber %d is waiting for a customer\n", syscall(SYS_gettid));
 	pthread_mutex_unlock(&print_mutex);
+	sem_wait(&customer_sem);
+
+	//Skip waiting if there are no more customers
+	pthread_mutex_lock(&count_mutex);
+	int customers_done = customers_visited < customer_count; 
+	pthread_mutex_unlock(&count_mutex);
 	
-	
-	//Notify one thread that the barber is done
-	pthread_mutex_lock(&barber_mutex);
-	barber_working[syscall(SYS_gettid)%barber_count] = 0;
-	pthread_cond_signal(&barber_cv);
-	pthread_mutex_unlock(&barber_mutex);
-	
-	//Allow customer to leave
-	//Makes the customer wait until the barber is done
-	sem_post(&barber_sem);	
+	if (customers_done) 
+	  {
+	     
+	     //Remove one thread from the seat
+	     pthread_mutex_lock(&seat_mutex);
+	     if (max_seat_count != 0)
+	       {	  
+		  free_seat_count++;
+	       }
+	     pthread_mutex_unlock(&seat_mutex);
+	     
+	     //Notify all waiting threads that the barber is busy
+	     pthread_mutex_lock(&barber_mutex);
+	     barber_working[syscall(SYS_gettid)%barber_count] = 1;
+	     pthread_cond_signal(&barber_cv);
+	     pthread_mutex_unlock(&barber_mutex);
+	     
+	     //Sleep for cutting time
+	     sleep(cut_time);
+	     //pthread_mutex_lock(&print_mutex);
+	     //printf("\nBarber %d cut hair\n", syscall(SYS_gettid));
+	     //pthread_mutex_unlock(&print_mutex);
+	     
+	     
+	     //Notify one thread that the barber is done
+	     pthread_mutex_lock(&barber_mutex);
+	     barber_working[syscall(SYS_gettid)%barber_count] = 0;
+	     pthread_cond_signal(&barber_cv);
+	     pthread_mutex_unlock(&barber_mutex);
+	     
+	     //Allow customer to leave
+	     //Makes the customer wait until the barber is done
+	     sem_post(&barber_sem);	
 		
-	//Noticed the customer left
-	sem_wait(&leaving_sem);
+	     //Noticed the customer left
+	     sem_wait(&leaving_sem);
+	  }
 	
 	//Lock mutex to aqcuire current count
 	pthread_mutex_lock(&count_mutex);
@@ -180,18 +251,25 @@ void* barber_run(void* arg)
    pthread_mutex_unlock(&count_mutex);
    
    //Debugging
-   printf("\nI QUIT! Barber %d is done\n\n", syscall(SYS_gettid));
-   int sem_count;
-   int cust_count;
-   sem_getvalue(&leaving_sem, &sem_count);
-   sem_getvalue(&customer_sem, &cust_count);
-   printf("Remaining blocked threads leaving %d\n", sem_count);
-   printf("Remaining blocked threads customer %d\n", cust_count);
+   printf("Barber %d has left\n", syscall(SYS_gettid));
+   //int sem_count = -100;
+   //int cust_count = -100;
+   
+   //int sem1 = sem_getvalue(&leaving_sem, &sem_count);
+   //int sem2 = sem_getvalue(&customer_sem, &cust_count);
+   //if (sem1 == 0)
+   //  {
+   //	printf("Remaining blocked threads leaving %d\n", sem_count);
+   //  }
+   //if(sem2 == 0)
+   //  {
+   //	printf("Remaining blocked threads customer %d\n", cust_count);
+   //  }
    
    //Other barbers may be trapped waiting
    //These statements ensure they are released
    sem_post(&customer_sem);
-   sem_post(&leaving_sem);
+   //system("ps -x");
 }
 
 
@@ -277,7 +355,7 @@ int main(int argc, char** argv)
 	printf("Please enter the number of: barbers. customers, and free seats respectively as arguments\n");
      }
    
-   
+   //system("ps -x");
    return 0;
 }
 
