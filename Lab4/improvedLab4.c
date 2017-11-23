@@ -100,46 +100,10 @@ void* customer_run(void* arg)
      
    //Lock on seat
    pthread_mutex_lock(&seat_mutex);
-   
-   
-   if (max_seat_count == 0)
-     {
-	
-	pthread_mutex_unlock(&seat_mutex);
-	
-	//Lock barber to check if he is busy
-	pthread_mutex_lock(&barber_mutex);
-	
-	//Debugging statement
-        printf("\nCustomer %d is checking for a barber\n", syscall(SYS_gettid));
-	
-	int i;
-	//Allows for any barber to cut hair by applying a generic barber
-	int free_barber = 0;
-	//Wait until the barber is not working
-	//unlocks and relocks mutex when called
-	for (i = 0; i < barber_count; i++)
-	  {
-	     free_barber += barber_working[i];
-	  }
-	printf("Free Barbers %d\n", free_barber);
-	if (free_barber)
-	  {
-	     pthread_mutex_unlock(&barber_mutex);
-	     requestHaircut();
-	  }
-	else 
-	  {
-	     pthread_mutex_unlock(&barber_mutex);
-	     noBarbers();
-	  }
-	
-	
-     }
- 
+    
    //Check if there are no seats 
    //Seats are still free
-   else if (free_seat_count > 0)
+   if (free_seat_count > 0)
      {
 	//One seat is now occupied
 	free_seat_count--;
@@ -211,10 +175,7 @@ void* barber_run(void* arg)
 	     
 	     //Remove one thread from the seat
 	     pthread_mutex_lock(&seat_mutex);
-	     if (max_seat_count != 0)
-	       {	  
-		  free_seat_count++;
-	       }
+	     free_seat_count++;
 	     pthread_mutex_unlock(&seat_mutex);
 	     
 	     //Notify all waiting threads that the barber is busy
