@@ -13,6 +13,7 @@
 
 
 int pd[2];
+int c;
 
 //Types
 //2 = owner
@@ -42,7 +43,65 @@ void checkPermissions(int st_mode, int type)
 
 
 
-int main(int argc, char *argv[])
+void filePermission(int userID, int userGroupID, int cpid,  char* fileName)
+{
+   cpid = fork();
+   //Child process
+   if (cpid == 0) 
+     {
+	     read(pd[0], &c, sizeof(c));
+	     printf("\nFilename: %s\n", fileName);
+	     
+	     //For this file
+	     //Declare and instantiate (struct stat) fileData in stack
+	    struct stat fileData;
+	     //Populates stat struct at address of fileData
+	     stat(fileName, &fileData);
+	     
+	     //For this file
+	     //Declare and instantiate (struct passwd) password in stack
+	     struct passwd* password;
+	     //Populate passwd at address of password
+	     // password is also a pointer
+	     //getpwuid returns a pointer 
+	    password = getpwuid(fileData.st_uid);
+	     
+	     printf("Directory: %s\n", password->pw_dir); 
+	     
+	     //Checking permissions
+	     if (userID == fileData.st_uid)
+	       {
+		  printf("You have owner permissions: ");
+		  checkPermissions(fileData.st_mode, 2);
+	       }
+	     else if (userGroupID == fileData.st_gid)
+	       {
+		  printf("You have group permissions: ");
+		  checkPermissions(fileData.st_mode, 1);
+	       }
+	     else 
+	       {
+		  printf("You have general permissions: ");
+		  checkPermissions(fileData.st_mode, 0);
+	       }
+	     write(pd[1], &c, sizeof(c));
+	     //Change sleep time to verify functioning parallel process
+	     sleep(1);
+	     exit(1);
+	  }
+   //Error Catch
+   else if (cpid < 0) 
+     {
+	printf("Error");
+	exit(0);
+     }
+   
+}
+
+
+
+
+int main(int argc, char** argv)
 {
    //Pipe to control writing
    pipe(pd);
@@ -61,63 +120,38 @@ int main(int argc, char *argv[])
 	     
    //Variable for loop
    int i;
-   int c = 1;
+   c = 1;
+   //Push to pipe to force printing by one process at a time
    write(pd[1], &c, sizeof(c));
+  
    
-   //Exit loop when all files are accounted for with a unique process
-   for (i = 1; i < argc; i++)
+   //retrieve all current files
+   if (argc == 1)
      {
-	cpid = fork();
-	//Child process
-	if (cpid == 0) 
+	char pwd[1024];
+	getcwd(pwd, 1024);
+	printf("PWD: %s\n", pwd);
+	DIR* dir = opendir(pwd);
+	struct dirent* file;
+	while((file = readdir(dir)) != NULL)
 	  {
-	    read(pd[0], &c, sizeof(c));
-	    printf("\nFilename: %s\n", argv[i]);
-	     
-	    //For this file
-	    //Declare and instantiate (struct stat) fileData in stack
-	    struct stat fileData;
-	    //Populates stat struct at address of fileData
-	    stat(argv[i], &fileData);
-	     
-	    //For this file
-	    //Declare and instantiate (struct passwd) password in stack
-	    struct passwd* password;
-	    //Populate passwd at address of password
-	    // password is also a pointer
-	    //getpwuid returns a pointer 
-	    password = getpwuid(fileData.st_uid);
-	    
-	    printf("Directory: %s\n", password->pw_dir); 
-	    
-	    //Checking permissions
-	    if (userID == fileData.st_uid)
-	       {
-		  printf("You have owner permissions: ");
-		  checkPermissions(fileData.st_mode, 2);
-	       }
-	    else if (userGroupID == fileData.st_gid)
-	       {
-		  printf("You have group permissions: ");
-		  checkPermissions(fileData.st_mode, 1);
-	       }
-	    else 
-	       {
-		  printf("You have general permissions: ");
-		  checkPermissions(fileData.st_mode, 0);
-	       }
-	    write(pd[1], &c, sizeof(c));
-	    //Change sleep time to verify functioning parallel process
-	    sleep(1);
-	    exit(1);
+	     printf("File names: %s\n", file->d_name);
+	     filePermission(userID, userGroupID, cpid, file->d_name);
 	  }
-	//Error Catch
-	else if (cpid < 0) 
+	
+     }
+   
+   //Files are specified
+   else 
+     {
+	//Exit loop when all files are accounted for with a unique process
+	for (i = 1; i < argc; i++)
 	  {
-	     printf("Error");
-	     exit(0);
+	     filePermission(userID, userGroupID, cpid, argv[i]);
 	  }
      }
+   
+   
    
    
    int status;
@@ -131,7 +165,6 @@ int main(int argc, char *argv[])
      }
    
    //Final print statement
-   printf("%d\n",cpid);
    system("ps -H");
   
    //Conclude running time
