@@ -33,37 +33,60 @@ int main(int argc, char *argv[])
 	exit(1);
      }
    
+   //Reading parameters
    portno = atoi(argv[2]);
    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-   if (sockfd < 0) 
-     error("ERROR opening socket");
+   if (sockfd < 0) error("ERROR opening socket");
+   
+   //connecting to localhost
    server = gethostbyname(argv[1]);
    if (server == NULL) 
      {
-	
 	fprintf(stderr,"ERROR, no such host\n");
 	exit(1);
      }
    
+   //zero out server address
    bzero((char *) &serv_addr, sizeof(serv_addr));
-   serv_addr.sin_family = AF_INET;
+   
+   //set address configuration
+   serv_addr.sin_family = AF_INET; //use internet protocol
    bcopy((char *)server->h_addr, 
 	 (char *)&serv_addr.sin_addr.s_addr,
-	 server->h_length);
-   serv_addr.sin_port = htons(portno);
-   if (connect(sockfd,(struct sockaddr *)&serv_addr,sizeof(serv_addr)) < 0) 
-     error("ERROR connecting");
-   printf("Please enter the message: ");
-   bzero(buffer,256);
-   fgets(buffer,255,stdin);
-       n = write(sockfd,buffer,strlen(buffer));
-   if (n < 0) 
-     error("ERROR writing to socket");
-   bzero(buffer,256);
-   n = read(sockfd,buffer,255);
-   if (n < 0) 
-     error("ERROR reading from socket");
-   printf("%s\n",buffer);
+	 server->h_length); //magic?
+   serv_addr.sin_port = htons(portno); //set port number
+   
+   //connect to server on appropriate port
+   if (connect(sockfd,(struct sockaddr *)&serv_addr,sizeof(serv_addr)) < 0) error("ERROR connecting");
+   
+   //get number of numbers and send it to the server
+   printf("Please enter amoutn of number to sum: ");
+   int number_count;
+   scanf("%d", &number_count);
+   n = write(sockfd,&number_count,sizeof(number_count));
+   if (n < 0) error("ERROR writing to server");
+   
+   //read all numbers
+   int i;
+   for (i = 0; i < number_count; i++)
+     {
+	int number;
+	printf("Please enter a number:\n");
+	scanf("%d", &number);
+	n = write(sockfd,&number,sizeof(number));
+	if (n < 0) error("ERROR writing to server");
+	
+     }
+   
+   //Recieve the sum for practice
+   int sum;
+   n = read(sockfd,&sum,sizeof(sum));
+   if (n < 0) error("ERROR reading from socket");
+   printf("The sum is (Client): %d\n",sum);
+   
+   //Close socket for practice
+   close(sockfd);
+   
    exit(0);
    return 0;
 }

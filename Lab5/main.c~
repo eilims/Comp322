@@ -7,6 +7,8 @@ int main(int argc, char** argv)
 {
    pid_t pid = getpid();
    
+   
+   //Create server process
    pid_t cpid = fork();
    if (cpid == 0)
      {
@@ -24,7 +26,12 @@ int main(int argc, char** argv)
      }
    printf("Server started\n");
    
+
+   //Give the server time to set up
+   sleep(2);
    
+   
+   //Create client process
    cpid = fork();
    if (cpid == 0)
      {
@@ -38,7 +45,7 @@ int main(int argc, char** argv)
 	  {
 	     printf("Error has occured for client :(\n");
 	  }
-	
+       
 	exit(0);
      }
    printf("Client started\n");
